@@ -26,6 +26,18 @@ async def step_set(step, data):
 async def step_delay(step, data):
     await asyncio.sleep(step.get("seconds", 1))
 
+@register_step("if")
+async def step_if(step, data):
+    condition = step["condition"]
+    result = eval(condition)
+
+    next_steps = step["true_next"] if result else step.get("false_next", [])
+
+    await asyncio.gather(*[
+            execute_step(next_id, workflow, data) for next_id in next_steps
+        ])
+
+    return data
 
 # Executing steps
 async def execute_step(step_id, workflow, data):
@@ -45,15 +57,19 @@ async def execute_step(step_id, workflow, data):
 
     return data
 
-# Build-in workflow
+# Build-in workflow (for testing and development purpose)
 workflow = {
     "start": "1",
     "steps": {
-        "1": {"type": "log", "message": "Start", "next": ["2", "3"]},
-        "2": {"type": "delay", "seconds": 10, "next": ["5"]},
-        "3": {"type": "log", "message": "Branch 3", "next": ["4"]},
-        "4": {"type": "log", "message": "End branch 3", "next": []},
-        "5": {"type": "log", "message": "End branch 2", "next": []}
+        "1": {"type": "set", "key": "temperature", "value": 22, "next": ["2"]},
+        "2": {
+            "type": "if",
+            "condition": 'data.get("temperature", 0) > 25',
+            "true_next": ["3"],
+            "false_next": ["4"]
+        },
+        "3": {"type": "log", "message": "It's hot!", "next": []},
+        "4": {"type": "log", "message": "It's cool!", "next": []}
     }
 }
 
@@ -61,6 +77,7 @@ data = {}
 
 # Api endpoints
 @app.get("/")
-def root():
-    asyncio.run(execute_step(workflow["start"], workflow, data))
-    return {"message": "Spaghetti is up and running"}
+async def root():
+    global data
+    await execute_step(workflow["start"], workflow, data)
+    return {"Data": data}
