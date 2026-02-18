@@ -14,7 +14,9 @@ def register_step(step_type):
 
 @register_step("log")
 async def step_log(step, data):
-    print(f"LOGGING: {step["message"]}")
+    msg = step["message"]
+    print(f"LOGGING: {msg}")
+    data.setdefault("logs", []).append(msg)
     return data
 
 @register_step("set")
