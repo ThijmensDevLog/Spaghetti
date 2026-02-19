@@ -23,23 +23,23 @@ def register_step(step_type):
     return decorator
 
 @register_step("log")
-async def step_log(step, data):
+async def step_log(step, workflow, data):
     msg = step["message"]
     print(f"LOGGING: {msg}")
     data.setdefault("logs", []).append(msg)
     return data
 
 @register_step("set")
-async def step_set(step, data):
+async def step_set(step, workflow, data):
     data[step["key"]] = step["value"]
     return data
 
 @register_step("delay")
-async def step_delay(step, data):
+async def step_delay(step, workflow, data):
     await asyncio.sleep(step.get("seconds", 1))
 
 @register_step("if")
-async def step_if(step, data):
+async def step_if(step, workflow, data):
     condition = step["condition"]
     result = eval(condition)
 
@@ -52,7 +52,7 @@ async def step_if(step, data):
     return data
 
 @register_step("http")
-async def step_http(step, data):
+async def step_http(step, workflow, data):
     url = step["url"]
     method = step.get("method", "GET").upper()
     body = step.get("body", None)
@@ -77,7 +77,7 @@ async def execute_step(step_id, workflow, data):
     if step_type not in step_handlers:
         raise Exception(f"Unknown step type: {step_type}")
 
-    data = await step_handlers[step_type](step, data)
+    data = await step_handlers[step_type](step, workflow, data)
 
     next_steps = step.get("next", [])
     if next_steps:
@@ -87,34 +87,13 @@ async def execute_step(step_id, workflow, data):
 
     return data
 
-# Build-in workflow (for testing and development purpose)
-workflow = {
-    "start": "1",
-    "steps": {
-        "1": {"type": "set", "key": "temperature", "value": 22, "next": ["2"]},
-        "2": {
-            "type": "if",
-            "condition": 'data.get("temperature", 0) > 25',
-            "true_next": ["3"],
-            "false_next": ["4"]
-        },
-        "3": {"type": "log", "message": "It's hot!", "next": ["5"]},
-        "4": {"type": "log", "message": "It's cool!", "next": ["5"]},
-        "5": {
-            "type": "http",
-            "url": "https://jsonplaceholder.typicode.com/todos/1",
-            "method": "GET",
-            "store_key": "todo",
-            "next": []
-        }
-    }
-}
-
 data = {}
 
 # Api endpoints
-@app.get("/")
-async def root():
+@app.post("/run")
+async def run_workflow(workflow: dict):
     global data
+    global workflow_global
+    workflow_global = workflow
     await execute_step(workflow["start"], workflow, data)
-    return {"Data": data}
+    return data
