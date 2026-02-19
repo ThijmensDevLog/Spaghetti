@@ -1,7 +1,17 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
+import httpx
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Registering steps
 step_handlers = {}
@@ -41,6 +51,24 @@ async def step_if(step, data):
 
     return data
 
+@register_step("http")
+async def step_http(step, data):
+    url = step["url"]
+    method = step.get("method", "GET").upper()
+    body = step.get("body", None)
+    store_key = step.get("store_key", "http_response")
+
+    async with httpx.AsyncClient() as client:
+        response = await client.request(method, url)
+
+    try:
+        data[store_key] = response.json()
+    except ValueError:
+        data[store_key] = response.text
+    
+    data.setdefault("logs", []).append(f"HTTP: {method} {url} -> {response.status_code}")
+    print(f"HTTP: {method} {url} -> {response.status_code}")
+
 # Executing steps
 async def execute_step(step_id, workflow, data):
     step = workflow["steps"][step_id]
@@ -70,8 +98,15 @@ workflow = {
             "true_next": ["3"],
             "false_next": ["4"]
         },
-        "3": {"type": "log", "message": "It's hot!", "next": []},
-        "4": {"type": "log", "message": "It's cool!", "next": []}
+        "3": {"type": "log", "message": "It's hot!", "next": ["5"]},
+        "4": {"type": "log", "message": "It's cool!", "next": ["5"]},
+        "5": {
+            "type": "http",
+            "url": "https://jsonplaceholder.typicode.com/todos/1",
+            "method": "GET",
+            "store_key": "todo",
+            "next": []
+        }
     }
 }
 
