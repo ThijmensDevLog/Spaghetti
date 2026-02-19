@@ -1,8 +1,20 @@
+# Existing imports
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import httpx
+import os
+import dotenv
 
+# Custom nodes
+from steps import discord as dc_node
+
+# Envirement
+dotenv.load_dotenv()
+
+DISCORD_WEBHOOK = os.getenv("DISCORD_WEBHOOK")
+
+# Create app
 app = FastAPI()
 
 app.add_middleware(
@@ -37,6 +49,7 @@ async def step_set(step, data):
 @register_step("delay")
 async def step_delay(step, data):
     await asyncio.sleep(step.get("seconds", 1))
+    return data
 
 @register_step("if")
 async def step_if(step, data):
@@ -69,6 +82,8 @@ async def step_http(step, data):
     data.setdefault("logs", []).append(f"HTTP: {method} {url} -> {response.status_code}")
     print(f"HTTP: {method} {url} -> {response.status_code}")
 
+dc_node.register(register_step)
+
 # Executing steps
 async def execute_step(step_id, workflow, data):
     step = workflow["steps"][step_id]
@@ -99,12 +114,19 @@ workflow = {
             "false_next": ["4"]
         },
         "3": {"type": "log", "message": "It's hot!", "next": ["5"]},
-        "4": {"type": "log", "message": "It's cool!", "next": ["5"]},
+        "4": {"type": "log", "message": "It's cool!", "next": ["6"]},
         "5": {
             "type": "http",
             "url": "https://jsonplaceholder.typicode.com/todos/1",
             "method": "GET",
             "store_key": "todo",
+            "next": []
+        },
+        "6": {
+            "type": "discord_webhook",
+            "webhook_url": DISCORD_WEBHOOK,
+            "content": "Temperature is {{value}}",
+            "data_path": "temperature",
             "next": []
         }
     }
