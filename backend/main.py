@@ -109,26 +109,19 @@ workflow = {
         "1": {"type": "set", "key": "temperature", "value": 22, "next": ["2"]},
         "2": {
             "type": "if",
-            "condition": 'data.get("temperature", 0) > 25',
+            "condition": 'data.get("temperature", 0) < 25',
             "true_next": ["3"],
-            "false_next": ["4"]
+            "false_next": []
         },
-        "3": {"type": "log", "message": "It's hot!", "next": ["5"]},
-        "4": {"type": "log", "message": "It's cool!", "next": ["6"]},
-        "5": {
-            "type": "http",
-            "url": "https://jsonplaceholder.typicode.com/todos/1",
-            "method": "GET",
-            "store_key": "todo",
-            "next": []
-        },
-        "6": {
+        "3": {"type": "set", "key": "humidity", "value": "80%", "next": ["4"]},
+        "4": {
             "type": "discord_webhook",
             "webhook_url": DISCORD_WEBHOOK,
-            "content": "Temperature is {{value}}",
-            "data_path": "temperature",
-            "next": []
-        }
+            "content": "Temperature is {{temperature}}\nHumidity is {{humidity}}",
+            "next": ["5"]
+        },
+        "5": {"type": "log", "message": "Finished execution", "next": []},
+
     }
 }
 
@@ -140,3 +133,8 @@ async def root():
     global data
     await execute_step(workflow["start"], workflow, data)
     return {"Data": data}
+
+@app.get("/debug/steps")
+async def debug_steps():
+    global step_handlers
+    return step_handlers

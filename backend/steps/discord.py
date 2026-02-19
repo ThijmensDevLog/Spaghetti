@@ -1,4 +1,5 @@
 import httpx
+import re
 
 # Discord webhook (single message)
 def register(register_step):
@@ -6,17 +7,18 @@ def register(register_step):
     async def step_discord_webhook(step, data):
         webhook_url = step["webhook_url"]
         content = step["content"]
-        data_path = step.get("data_path")
 
-        if data_path:
+        placeholders = re.findall(r"{{(.*?)}}", content)
+
+        for ph in placeholders:
             value = data
-            for key in data_path.split("."):
-                value = value.get(key, "")
-            content = content.replace("{{value}}", str(value))
+            for part in ph.strip().split("."):
+                value = value.get(part, "")
+            content = content.replace(f"{{{{{ph}}}}}", str(value))
 
         async with httpx.AsyncClient() as client:
             await client.post(webhook_url, json={"content": content})
 
-        data.setdefault("logs", []).append(f"Discord webhook: {content}")
-        print(f"Discord webhook: {content}")
+        data.setdefault("logs", []).append(f"{content}")
+        print(f"DISCORD WEBHOOK: {content}")
         return data
