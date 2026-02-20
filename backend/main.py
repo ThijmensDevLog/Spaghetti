@@ -1,5 +1,6 @@
 # Existing imports
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import httpx
@@ -138,3 +139,18 @@ async def root():
 async def debug_steps():
     global step_handlers
     return step_handlers
+
+@app.post("/run/workflow")
+async def run_workflow(request: Request):
+    payload = await request.json()
+    workflow = payload.get("workflow")
+    if not workflow:
+        return JSONResponse({"error": "No workflow provided"}, status_code=400)
+
+    data = {}
+    try:
+        await execute_step(workflow["start"], workflow, data)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+    return {"data": data, "execution_order": data.get("execution_order", [])}

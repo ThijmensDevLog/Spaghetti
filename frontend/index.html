@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spaghetti</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    textarea { width: 100%; height: 300px; }
+    #logs { white-space: pre-wrap; border: 1px solid #ccc; padding: 10px; margin-top: 10px; }
+    button { padding: 10px 20px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>Spaghetti</h1>
+  <p>Enter your workflow down below.</p>
+  <textarea id="workflowInput">{}</textarea>
+  <br>
+  <button onclick="runWorkflow()">Run</button>
+
+  <h2>Execution Output:</h2>
+  <div id="logs"></div>
+
+  <script>
+    async function runWorkflow() {
+      const logsDiv = document.getElementById("logs");
+      logsDiv.innerText = "Running workflow...\n";
+
+      let workflowJSON;
+      try {
+        workflowJSON = JSON.parse(document.getElementById("workflowInput").value);
+      } catch (err) {
+        logsDiv.innerText = "Invalid JSON!\n" + err;
+        return;
+      }
+
+      try {
+        const res = await fetch("http://localhost:8000/run/workflow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workflow: workflowJSON })
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          logsDiv.innerText += "Error: " + data.error;
+        } else {
+          logsDiv.innerText += JSON.stringify(data.data, null, 2);
+        }
+      } catch (err) {
+        logsDiv.innerText += "Request failed:\n" + err;
+      }
+    }
+  </script>
+</body>
+</html>
