@@ -9,6 +9,7 @@ import dotenv
 
 # Custom nodes
 from steps import discord as dc_node
+from steps import weather as weather_node
 
 # Envirement
 dotenv.load_dotenv()
@@ -84,6 +85,7 @@ async def step_http(step, data):
     print(f"HTTP: {method} {url} -> {response.status_code}")
 
 dc_node.register(register_step)
+weather_node.register(register_step)
 
 # Executing steps
 async def execute_step(step_id, workflow, data):
